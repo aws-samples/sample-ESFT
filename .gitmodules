@@ -1,0 +1,3 @@
+[submodule "ms-swift"]
+	path = ms-swift
+	url = git@ssh.code.aws.dev:personal_projects/alias_w/wangcg/ms-swift.git
