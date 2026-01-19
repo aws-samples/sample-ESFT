@@ -1,0 +1,7 @@
+__pycache__/
+wandb
+all_models/
+results/checkpoints/
+results/expert_scores/*/rank_*
+.venv
+.DS_Store
