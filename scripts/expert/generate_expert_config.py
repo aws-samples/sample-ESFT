@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # Only process MoE layers (skip dense layers)
     scores = summary[f"{args.score_function}_scores"]
     for layer in sorted(moe_layers):
-        layer_str = str(layer)
+        layer_str = str(layer+1)
         l_score = [(int(k), v) for k, v in scores[layer_str].items()]
         l_score = sorted(l_score, key=lambda x: x[1], reverse=True)
         

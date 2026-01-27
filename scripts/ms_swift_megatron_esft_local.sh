@@ -20,13 +20,13 @@ ACTIVATE_FILE_PATH="$PROJECT_ROOT/.venv/bin/activate"
 
 # Model settings
 MODEL="Qwen/Qwen3-Coder-30B-A3B-Instruct"
-EXPERT_CONFIG="../results/expert_configs/Qwen3-Coder-30B-A3B-Instruct_expert_config.json"
+EXPERT_CONFIG="results/expert_configs/Qwen3-Coder-30B-A3B-Instruct_expert_config.json"
 PARAM_PATTERN="auto"
-GENERATE_PARAMS_SCRIPT="./generate_trainable_params.py"
+GENERATE_PARAMS_SCRIPT="scripts/generate_trainable_params.py"
 
 # Dataset settings
-TRAIN_DATASETS=""
-VAL_DATASETS=""
+TRAIN_DATASETS=""           # Training dataset (user must fill in)
+VAL_DATASETS=""             # Validation dataset (user must fill in)
 
 # Megatron parallelism settings
 EXPERT_PARALLEL=8
