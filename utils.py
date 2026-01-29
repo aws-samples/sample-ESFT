@@ -2,6 +2,7 @@ import os
 import random
 import torch
 import torch.distributed as dist
+import boto3
 
 
 def get_formatted_input_and_target(messages, tokenizer, IGNORE_TOKEN_ID=-100, mask_prompt=True):
@@ -165,3 +166,20 @@ def init_parallel_groups(ep_size=1):
     dist.all_reduce(torch.zeros(1, device="cuda"), group=ep_group)
     dist.all_reduce(torch.zeros(1, device="cuda"), group=edp_group)
     return world_size, local_rank, ep_group, edp_group
+
+
+### AWS utils
+def s3_upload(data_path, s3_path):
+    s3 = boto3.client('s3')
+    
+    # Parse s3://bucket/key format
+    parts = s3_path.replace('s3://', '').split('/')
+    bucket = parts[0]
+    key = os.path.join(*parts[1:], os.path.basename(data_path))
+
+    s3.upload_file(
+        data_path,  # filename
+        bucket,     # bucket 
+        key         # key
+    )
+    print(f"{data_path} is uploaded at s3://{bucket}/{key}")
