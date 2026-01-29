@@ -73,6 +73,12 @@ sudo docker tag ${DOCKER_IMAGE_NAME}:latest $DOCKER_DOMAIN/${DOCKER_IMAGE_NAME}:
 sudo docker push $DOCKER_DOMAIN/${DOCKER_IMAGE_NAME}:latest
 ```
 
+Install sagemaker
+
+```bash
+pip install sagemaker boto3
+```
+
 ### Run ESFT by SageMaker AI
 
 #### Basic Usage

@@ -46,6 +46,15 @@ def patch_gpt_oss():
             # 4.57.x version: (router_scores, router_indices)
             router_scores, router_indices = router_output
         
+        # router_indices: [num_tokens, top_k]
+        # router_scores: [num_tokens, num_experts]
+        # -> router_weights: [num_tokens, top_k]
+        router_weights = torch.gather(
+            router_scores,
+            dim=1,
+            index=router_indices
+        )
+        
         # Log expert weights if configured
         if hasattr(self, 'config') and hasattr(self.config, 'log_expert_weights') and self.config.log_expert_weights:
             assert hasattr(self.config, 'expert_log_dir'), "Please specify expert_log_dir in the config to log the expert weights"
@@ -58,7 +67,7 @@ def patch_gpt_oss():
             
             with open(file_path, "a") as f:
                 tk_idx_list = router_indices.view(-1).tolist()
-                tk_weight_list = router_scores.view(-1).tolist()
+                tk_weight_list = router_weights.view(-1).tolist()
                 f.write("\t".join([str(i) for i in tk_idx_list]) + "\t\t" + 
                        "\t".join([str(round(i, 4)) for i in tk_weight_list]) + "\n")
         

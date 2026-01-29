@@ -31,6 +31,12 @@ fi
 
 # Model settings
 MODEL="${SM_HP_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}"
+MODEL_ARGS=""
+if [[ "$MODEL" == *gpt-oss* ]]; then
+    # GPT-OSS models have special arguments that may cause CLI parsing issues
+    # Use ignore_unknown_args to handle model-specific arguments gracefully
+    MODEL_ARGS="--padding_free false --template_backend jinja --ignore_args_error"
+fi
 
 # TODO Dataset settings
 TRAIN_DATASETS="${SM_HP_TRAIN_DATASET:-datasets/train/intent.jsonl}"
@@ -146,6 +152,7 @@ torchrun \
     --master_port=$MASTER_PORT \
     -m swift.cli._megatron.pt \
     --model $MODEL \
+    $MODEL_ARGS \
     --dataset $TRAIN_DATASETS \
     --val_dataset $VAL_DATASETS \
     --use_hf true \
