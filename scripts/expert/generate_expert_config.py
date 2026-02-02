@@ -60,9 +60,8 @@ def get_summary(expert_scores_dir, files, top_k, n_experts, n_layers):
     print("Loading files...")
     for rank, file in files:
         # File format: expert_weights_{layer_id}.txt (1-indexed)
-        layer_id_1indexed = int(file.split(".")[0].split("_")[2])
-        layer_id = layer_id_1indexed - 1  # Convert to 0-indexed for array
-        moe_layers.add(layer_id_1indexed)  # Track as 1-indexed
+        layer_id = int(file.split(".")[0].split("_")[2])
+        moe_layers.add(layer_id)  # Track as 1-indexed
 
         with open(os.path.join(expert_scores_dir, rank, file)) as f:
             data = f.readlines()
@@ -73,8 +72,8 @@ def get_summary(expert_scores_dir, files, top_k, n_experts, n_layers):
     
     # Calculate total from MoE layers only
     total = 0
-    for layer_1idx in sorted(moe_layers):
-        layer_total = sum(token_scores[layer_1idx - 1])
+    for layer_idx in sorted(moe_layers):
+        layer_total = sum(token_scores[layer_idx])
         if layer_total > 0:
             total = layer_total
             break
@@ -90,7 +89,7 @@ def get_summary(expert_scores_dir, files, top_k, n_experts, n_layers):
 
     # Convert to 1-indexed dict format
     summary = {"token_scores": token_scores, "gate_scores": gate_scores}
-    summary = {k: {str(i+1): {str(j): round(v, 4) for j, v in enumerate(l)} for i, l in enumerate(v)} for k, v in summary.items()}
+    summary = {k: {str(i): {str(j): round(v, 4) for j, v in enumerate(l)} for i, l in enumerate(v)} for k, v in summary.items()}
 
     return summary, moe_layers
 
@@ -131,7 +130,7 @@ if __name__ == "__main__":
     # Only process MoE layers (skip dense layers)
     scores = summary[f"{args.score_function}_scores"]
     for layer in sorted(moe_layers):
-        layer_str = str(layer+1)
+        layer_str = str(layer)
         l_score = [(int(k), v) for k, v in scores[layer_str].items()]
         l_score = sorted(l_score, key=lambda x: x[1], reverse=True)
         
