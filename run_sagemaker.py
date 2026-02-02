@@ -230,7 +230,7 @@ def main():
         print(f"Recommended types: {', '.join(recommended_instances)}")
         print("Proceeding with the specified instance type...")
     
-    # 실행
+    # Execute
     model_trainer = run_esft(args)
 
 if __name__ == "__main__":

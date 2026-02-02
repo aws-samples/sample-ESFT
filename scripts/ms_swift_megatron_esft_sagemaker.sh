@@ -105,11 +105,11 @@ if [ "$USE_WANDB" = "true" ]; then
         echo "Error: WANDB_API_KEY is not set"
         exit 1
     fi
-    if [ -z "${WANDI_ENTITY}" ]; then
+    if [ -z "${WANDB_ENTITY}" ]; then
         echo "Error: WANDB_ENTITY is not set"
         exit 1
     fi
-    WANDB_ARGS="--wandb_project ${WANDB_PROJECT_NAME} --wandb_exp_name ${WANDB_RUN_NAME} --wandb_save_dir ${LOG_DIR}"
+    WANDB_ARGS="--wandb_project ${WANDB_PROJECT} --wandb_exp_name ${WANDB_RUN_NAME} --wandb_save_dir ${LOG_DIR}"
 fi
 
 # ==========================
