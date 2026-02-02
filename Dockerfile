@@ -50,9 +50,7 @@ COPY ms-swift/ ./ms-swift/
 RUN pip3 install -e ./ms-swift
 
 # Copy project files
-COPY datasets/ ./datasets/
 COPY model_patch/ ./model_patch/
-COPY ms-swift/ ./ms-swift/
 COPY scripts/ ./scripts/
 COPY utils.py ./utils.py
 COPY sagemaker_entrypoint.py ./sagemaker_entrypoint.py
