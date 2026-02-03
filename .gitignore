@@ -5,3 +5,14 @@ results/checkpoints/
 results/expert_scores/*/rank_*
 .venv
 .DS_Store
+
+outputs/
+datasets/
+!datasets/train/intent.jsonl
+!datasets/train/law.jsonl
+!datasets/train/summary.jsonl
+!datasets/train/translation.jsonl
+!datasets/eval/intent.jsonl
+!datasets/eval/law.jsonl
+!datasets/eval/summary.jsonl
+!datasets/eval/translation.jsonl
