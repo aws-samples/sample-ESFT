@@ -10,6 +10,7 @@ from sagemaker.train.configs import (
     SourceCode, 
     InputData, 
     Compute,
+    StoppingCondition,
     TensorBoardOutputConfig,
 )
 from sagemaker.core.helper.session_helper import get_execution_role
@@ -113,6 +114,10 @@ def run_esft(args):
             )
         )
 
+    stopping_condition=StoppingCondition(
+        max_runtime_in_seconds=args.max_run_hours*3600
+    )
+
     model_trainer = ModelTrainer(
         training_image=image_uri,
         source_code=source_code,
@@ -120,6 +125,7 @@ def run_esft(args):
         hyperparameters=hyperparameters,
         role=role,
         base_job_name="esft",
+        stopping_condition=stopping_condition,
         environment={
             "TOKENIZERS_PARALLELISM": "false",
         }
@@ -143,10 +149,9 @@ def run_esft(args):
     )
     
     print("="*50)
-    print("Job Submitted!")
+    print("Job Finished!")
     print("="*50)
     
-    return model_trainer
 
 def main():
     parser = argparse.ArgumentParser(description="SageMaker ESFT Expert Scores Collection and Training (SDK v3)")

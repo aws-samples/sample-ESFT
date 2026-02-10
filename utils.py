@@ -177,6 +177,14 @@ def s3_upload(data_path, s3_path):
     bucket = parts[0]
     key = os.path.join(*parts[1:], os.path.basename(data_path))
 
+    # check bucket exists
+    try:
+        s3.head_bucket(Bucket=bucket)
+    except Exception as e:
+        # create bucket if not exist
+        s3.create_bucket(Bucket=bucket)
+        print(f"Created bucket {bucket}")
+
     s3.upload_file(
         data_path,  # filename
         bucket,     # bucket 
