@@ -1,0 +1,229 @@
+diff --git a/swift/megatron/model/gpt_bridge.py b/swift/megatron/model/gpt_bridge.py
+index 2bf177a5f..d5597156a 100644
+--- a/swift/megatron/model/gpt_bridge.py
++++ b/swift/megatron/model/gpt_bridge.py
+@@ -307,6 +307,10 @@ class GPTBridge:
+         pp_size = self.ep_pp_size if is_expert else self.pp_size
+         pp_rank = self.ep_pp_rank if is_expert else self.pp_rank
+         # pp/ep
++        # Skip collective operations when called from SequentialMLP saving path
++        # because only ranks with this layer execute the recursive calls
++        if getattr(self, '_skip_pp_broadcast', False):
++            return tensor
+         if pp_size > 1:
+             src_rank = torch.tensor([0 if tensor is None else pp_rank], dtype=torch.int64, device='cuda')
+             dist.all_reduce(src_rank, group=pp_group)
+@@ -405,10 +409,12 @@ class GPTBridge:
+         is_modules_to_save = isinstance(sub_module, ModulesToSaveWrapper)
+         if not to_mcore:
+             state = torch.tensor([is_lora, is_modules_to_save], dtype=torch.bool, device='cuda')
+-            if is_expert and self.ep_pp_size > 1:
+-                dist.all_reduce(state, group=self.ep_pp_group)
+-            elif not is_expert and self.pp_size > 1:
+-                dist.all_reduce(state, group=self.pp_group)
++            # Skip collective operations when called from SequentialMLP saving path
++            if not getattr(self, '_skip_pp_broadcast', False):
++                if is_expert and self.ep_pp_size > 1:
++                    dist.all_reduce(state, group=self.ep_pp_group)
++                elif not is_expert and self.pp_size > 1:
++                    dist.all_reduce(state, group=self.pp_group)
+             is_lora, is_modules_to_save = state
+         if is_lora and self._is_peft_format and param_key != 'layer_norm_weight':
+             if to_mcore:
+@@ -660,22 +666,115 @@ class GPTBridge:
+             if hasattr(hf_mlp, 'shared_expert_gate'):
+                 self._set_state_dict(mg_mlp, 'shared_experts.gate_weight', hf_state_dict, 'shared_expert_gate.weight',
+                                      to_mcore)
+-        for ep_rank in range(self.ep_size):
+-            mg_experts = None if mg_mlp is None else mg_mlp.experts
+-            expert_available = ep_rank == self.ep_rank
+-            if not expert_available:
+-                if to_mcore:
+-                    continue
+-                else:
+-                    mg_experts = None
++        # Check if using SequentialMLP (moe_grouped_gemm=false)
++        mg_experts_sample = None if mg_mlp is None else mg_mlp.experts
++        is_sequential_mlp = mg_experts_sample is not None and hasattr(mg_experts_sample, 'local_experts')
++        
++        # When PP > 1 and saving, we need to sync is_sequential_mlp across all EP-PP ranks
++        # because mg_mlp may be None on ranks that don't have this layer.
++        # All ranks must agree on whether to use SequentialMLP path to ensure they all
++        # participate in the same collective operations.
++        if not to_mcore and self.ep_pp_size > 1:
++            is_sequential_tensor = torch.tensor([is_sequential_mlp], dtype=torch.bool, device='cuda')
++            dist.all_reduce(is_sequential_tensor, op=dist.ReduceOp.MAX, group=self.ep_pp_group)
++            is_sequential_mlp = is_sequential_tensor.item()
++        
++        if is_sequential_mlp and not to_mcore:
++            # SequentialMLP saving: all EP-PP ranks must participate in all_gather_object
++            # Pass mg_mlp.experts if available, otherwise None (for PP ranks without this layer)
+             hf_state_dict.update(
+-                self._set_mlp_state(mg_experts, hf_state_dict, 'experts.', layer_idx, to_mcore, ep_rank=ep_rank))
++                self._set_mlp_state_sequential(mg_experts_sample, layer_idx, hf_mlp))
++        else:
++            # GroupedGEMM or loading: loop through each EP rank
++            for ep_rank in range(self.ep_size):
++                mg_experts = None if mg_mlp is None else mg_mlp.experts
++                expert_available = ep_rank == self.ep_rank
++                if not expert_available:
++                    if to_mcore:
++                        continue
++                    else:
++                        mg_experts = None
++                hf_state_dict.update(
++                    self._set_mlp_state(mg_experts, hf_state_dict, 'experts.', layer_idx, to_mcore, ep_rank=ep_rank))
+         if to_mcore:
+             hf_state_dict = {}
+         else:
+             hf_state_dict = self._add_prefix(hf_state_dict, hf_prefix)
+         return hf_state_dict
+ 
++    def _set_mlp_state_sequential(self, mg_experts, layer_idx: int, hf_mlp=None):
++        """
++        Handle SequentialMLP saving with EP-PP support.
++        This method is called when moe_grouped_gemm=false and we need to save experts.
++        All EP-PP ranks must participate in the all_gather_object operation.
++        
++        Args:
++            mg_experts: The experts module (can be None for PP ranks without this layer)
++            layer_idx: The layer index
++            hf_mlp: The HuggingFace MLP module for reference
++        
++        Returns:
++            dict: The state dict with 'experts.' prefix
++        """
++        args = self.args
++        num_local_experts = args.num_experts // self.ep_size
++        
++        if hf_mlp is None:
++            if hasattr(self.hf_layers[layer_idx], 'feed_forward'):
++                hf_mlp = self.hf_layers[layer_idx].feed_forward
++            else:
++                hf_mlp = self.hf_layers[layer_idx].mlp
++        
++        # Check TP/ETP configuration
++        if self.tp_size > 1 or self.etp_size > 1:
++            raise NotImplementedError(
++                f"SequentialMLP (moe_grouped_gemm=false) saving does not support TP > 1 or ETP > 1. "
++                f"Current: TP={self.tp_size}, ETP={self.etp_size}. "
++                f"For ESFT training, use tensor_model_parallel_size=1 and expert_tensor_parallel_size=1."
++            )
++        
++        # Collect local experts on this rank (empty list if mg_experts is None)
++        local_experts_data = []
++        if mg_experts is not None and hasattr(mg_experts, 'local_experts'):
++            # Temporarily disable _only_last_rank to collect data from all ranks
++            # Also set _skip_pp_broadcast flag to skip PP broadcast in recursive _set_mlp_state calls
++            # because only ranks with this layer execute the recursive calls
++            original_only_last_rank = self._only_last_rank
++            self._only_last_rank = False
++            self._skip_pp_broadcast = True
++            
++            for local_expert_idx in range(num_local_experts):
++                global_expert_idx = self.ep_rank * num_local_experts + local_expert_idx
++                expert_mlp = mg_experts.local_experts[local_expert_idx]
++                # Call _set_mlp_state with ep_rank=None to process as non-expert (single MLP)
++                expert_state_dict = self._set_mlp_state(expert_mlp, {}, '', layer_idx, False, ep_rank=None, hf_mlp=hf_mlp)
++                
++                # Copy to avoid reference issues
++                expert_state_dict_copy = {k: v for k, v in expert_state_dict.items()}
++                local_experts_data.append((global_expert_idx, expert_state_dict_copy))
++            
++            # Restore original settings
++            self._only_last_rank = original_only_last_rank
++            self._skip_pp_broadcast = False
++        
++        # All-gather from all EP-PP ranks
++        # Ranks without this layer (mg_experts=None) send empty lists
++        if self.ep_pp_size > 1:
++            all_experts_data = [None] * self.ep_pp_size
++            dist.all_gather_object(all_experts_data, local_experts_data, group=self.ep_pp_group)
++            all_experts_data = [item for sublist in all_experts_data for item in sublist]
++        else:
++            all_experts_data = local_experts_data
++        
++        # Build final state dict with 'experts.' prefix
++        result_hf_state_dict = {}
++        for global_expert_idx, expert_state_dict in all_experts_data:
++            for key, value in expert_state_dict.items():
++                prefixed_key = f'experts.{global_expert_idx}.{key}'
++                result_hf_state_dict[prefixed_key] = value
++        
++        return result_hf_state_dict
++
+     def _set_mlp_state(self,
+                        mg_mlp,
+                        hf_state_dict,
+@@ -703,6 +802,37 @@ class GPTBridge:
+                 transformers.__version__) >= version.parse('5.0.0.dev') and self.args.hf_model_type == 'glm4_5v':
+             hf_grouped = False
+             is_gate_up = False
++        
++        # Handle SequentialMLP (moe_grouped_gemm=false) for loading
++        # Note: Saving is handled by _set_mlp_state_sequential called from _set_moe_state
++        is_sequential_mlp = is_expert and mg_mlp is not None and hasattr(mg_mlp, 'local_experts')
++        
++        if is_sequential_mlp and to_mcore:
++            # Loading: distribute experts from HF checkpoint to local_experts
++            hf_state_dict = self._remove_prefix(hf_state_dict, hf_prefix)
++            
++            for local_expert_idx in range(num_local_experts):
++                global_expert_idx = self.ep_rank * num_local_experts + local_expert_idx
++                expert_mlp = mg_mlp.local_experts[local_expert_idx]
++                
++                # Extract this expert's parameters (keys like "0.gate_proj.weight")
++                expert_prefix = f'{global_expert_idx}.'
++                expert_hf_state_dict = {}
++                for key, value in hf_state_dict.items():
++                    if key.startswith(expert_prefix):
++                        new_key = key[len(expert_prefix):]
++                        expert_hf_state_dict[new_key] = value
++                
++                # Load into this expert
++                self._set_mlp_state(expert_mlp, expert_hf_state_dict, '', layer_idx, to_mcore, ep_rank=None)
++            
++            return {}
++        
++        # For GroupedGEMM with mg_mlp=None, return empty dict
++        # The broadcast mechanism in _get_weight will handle data collection
++        if not to_mcore and is_expert and mg_mlp is None:
++            return {}
++        
+         if to_mcore or hf_grouped:
+             hf_state_dict = self._remove_prefix(hf_state_dict, hf_prefix)
+         else:
+@@ -856,10 +986,12 @@ class GPTBridge:
+             is_lora = False if mg_mlp is None else isinstance(mg_mlp.linear_fc1,
+                                                               LoraParallelLinear) and self._is_peft_format
+             is_lora = torch.tensor([is_lora], dtype=torch.bool, device='cuda')
+-            if is_expert and self.ep_pp_size > 1:
+-                dist.all_reduce(is_lora, group=self.ep_pp_group)
+-            elif not is_expert and self.pp_size > 1:
+-                dist.all_reduce(is_lora, group=self.pp_group)
++            # Skip collective operations when called from SequentialMLP saving path
++            if not getattr(self, '_skip_pp_broadcast', False):
++                if is_expert and self.ep_pp_size > 1:
++                    dist.all_reduce(is_lora, group=self.ep_pp_group)
++                elif not is_expert and self.pp_size > 1:
++                    dist.all_reduce(is_lora, group=self.pp_group)
+             if is_lora:
+                 assert not hf_grouped, 'Currently, hf_grouped with LoRA is not supported.'
+                 if mg_mlp is None:
+@@ -1074,10 +1206,12 @@ class GPTBridge:
+                 is_lora = False if mg_mlp is None else isinstance(mg_mlp.linear_fc2,
+                                                                   LoraParallelLinear) and self._is_peft_format
+                 is_lora = torch.tensor([is_lora], dtype=torch.bool, device='cuda')
+-                if is_expert and self.ep_pp_size > 1:
+-                    dist.all_reduce(is_lora, group=self.ep_pp_group)
+-                elif not is_expert and self.pp_size > 1:
+-                    dist.all_reduce(is_lora, group=self.pp_group)
++                # Skip collective operations when called from SequentialMLP saving path
++                if not getattr(self, '_skip_pp_broadcast', False):
++                    if is_expert and self.ep_pp_size > 1:
++                        dist.all_reduce(is_lora, group=self.ep_pp_group)
++                    elif not is_expert and self.pp_size > 1:
++                        dist.all_reduce(is_lora, group=self.pp_group)
+                 if is_lora:
+                     assert not hf_grouped, 'Currently, hf_grouped with LoRA is not supported.'
+                     if mg_mlp is None:

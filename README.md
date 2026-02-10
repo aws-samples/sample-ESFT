@@ -273,6 +273,12 @@ sudo apt install -y python3.11 python3.11-venv python3.11-dev
 git clone --recurse-submodules <REPO_URL>
 cd ESFT-ms-swift
 
+# Initialize and update submodule
+git submodule update --init --recursive
+
+# Apply patches to ms-swift
+./scripts/apply_patches.sh
+
 # Create virtual environment
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -291,6 +297,8 @@ git clone https://github.com/NVIDIA/apex
 cd apex
 pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./
 ```
+
+> **Note**: The ms-swift submodule includes patches for SequentialMLP support with pipeline parallelism. See `patches/README.md` for details.
 
 ### Step 1: Collect Expert Routing Statistics
 
