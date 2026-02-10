@@ -115,7 +115,7 @@ def run_esft(args):
         )
 
     stopping_condition=StoppingCondition(
-        max_runtime_in_seconds=args.max_run_hours*3600
+        max_runtime_in_seconds=args.max_run_hours * 3600
     )
 
     model_trainer = ModelTrainer(

@@ -180,10 +180,17 @@ def s3_upload(data_path, s3_path):
     # check bucket exists
     try:
         s3.head_bucket(Bucket=bucket)
-    except Exception as e:
+    except s3.exceptions.NoSuchBucket:
         # create bucket if not exist
-        s3.create_bucket(Bucket=bucket)
+        region = s3.meta.region_name
+        if region == 'us-east-1':
+            s3.create_bucket(Bucket=bucket)
+        else:
+            s3.create_bucket(Bucket=bucket, CreateBucketConfiguration={'LocationConstraint': region})
         print(f"Created bucket {bucket}")
+    except Exception as e:
+        print(f"Error checking bucket {bucket}: {e}")
+        raise
 
     s3.upload_file(
         data_path,  # filename
