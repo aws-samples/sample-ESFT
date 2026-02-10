@@ -11,6 +11,10 @@ set -e
 # ==========================
 
 # Default values
+## Cache directories
+export HF_HOME="/opt/ml/model/.cache/huggingface"
+export HF_DATASETS_CACHE="${HF_HOME}/datasets"
+
 ## Scoring hparams
 MODEL="${SM_HP_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}"
 EVAL_DATASET="${SM_HP_EVAL_DATASET:-datasets/train/intent.jsonl}"

@@ -82,5 +82,10 @@ RUN chmod -R 777 /opt/ml /tmp
 # Move working SageMaker directory (EFS will be mounted)
 WORKDIR /home/${NB_USER}
 
+# HF cache directory
+ENV HF_HOME=/opt/ml/model/.cache/huggingface \
+    HF_HUB_CACHE=/opt/ml/model/.cache/huggingface \
+    TRANSFORMERS_CACHE=/opt/ml/model/.cache
+
 # Set entrypoint for SageMaker training
 # ENTRYPOINT ["python", "/opt/ml/code/sagemaker_entrypoint.py"]

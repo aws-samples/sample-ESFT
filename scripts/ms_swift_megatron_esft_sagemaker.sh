@@ -80,7 +80,7 @@ export MASTER_PORT=29500
 export CUDA_VISIBLE_DEVICES=$(seq -s, 0 $((GPUS_PER_NODE - 1)))
 
 # Cache directories (modify as needed)
-export HF_HOME="${HOME}/.cache/huggingface"
+export HF_HOME="/opt/ml/model/.cache/huggingface"
 export HF_DATASETS_CACHE="${HF_HOME}/datasets"
 export TRANSFORMERS_CACHE="${HF_HOME}/transformers"
 export TRITON_CACHE_DIR="/tmp/triton_cache_esft"
@@ -184,7 +184,7 @@ torchrun \
     --save $OUTPUT_DIR \
     --no_save_optim \
     --use_distributed_optimizer true \
-    --tensorboard_dir /opt/ml/output/data/tensorboard \
+    --tensorboard_dir /opt/ml/output/tensorboard \
     --tensorboard_log_interval 1 \
     $WANDB_ARGS \
     2>&1 | tee "${LOG_DIR}/training.log"
