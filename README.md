@@ -449,4 +449,4 @@ Original paper: [Let the Expert Stick to His Last: Expert-Specialized Fine-Tunin
 
 ## License
 
-See [LICENSE-CODE](./LICENSE-CODE) for details.
+This project is licensed under the Apache-2.0 License.
