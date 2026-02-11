@@ -229,7 +229,7 @@ lspci | grep -i nvidia
 
 # install gcc
 sudo apt-get update
-sudo apt install wget gcc linux-headers-generic software-properties-common curl git -y
+sudo apt install wget gcc linux-headers-generic software-properties-common curl alsa-utils git -y
 gcc --version
 
 # Ubuntu-driver
@@ -250,13 +250,10 @@ sudo apt install nvidia-driver-$driver_ver-server nvidia-fabricmanager-$driver_v
 
 # NVCC install
 # sudo apt install nvidia-cuda-toolkit
-sudo apt install cuda-toolkit-12-8
+sudo apt install -y cuda-toolkit-12-8 cudnn-cuda-12 libnccl-dev
 echo 'export CUDA_HOME=/usr/local/cuda-12.8' >> ~/.bashrc
 echo 'export PATH=$CUDA_HOME/bin:$PATH' >> ~/.bashrc
 echo 'export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH:-}"' >> ~/.bashrc
-echo 'export CUDA_HOME=/usr/local/cuda-12.8' >> ~/.$(basename $0)rc
-echo 'export PATH=$CUDA_HOME/bin:$PATH' >> ~/.$(basename $0)rc
-echo 'export LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH:-}"' >> ~/.$(basename $0)rc
 source ~/.bashrc
 ```
 
@@ -266,7 +263,7 @@ If you don't use Python 3.11, please install Python 3.11 first.
 sudo apt install software-properties-common
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
-sudo apt install -y python3.11 python3.11-venv
+sudo apt install -y python3.11 python3.11-venv python3.11-dev
 ```
 
 **(REQUIRED)** Install repositories and install dependencies
@@ -288,6 +285,11 @@ pip install --no-build-isolation flash-attn==2.8.1
 pip install --no-build-isolation "transformer-engine[pytorch]==2.11.0"
 pip install -r requirements.txt
 pip install -e ./ms-swift
+
+# Install Apex for gradient_accumulation_fusion
+git clone https://github.com/NVIDIA/apex
+cd apex
+pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext" --config-settings "--build-option=--cuda_ext" ./
 ```
 
 ### Step 1: Collect Expert Routing Statistics
