@@ -2,6 +2,12 @@
 
 ESFT (Expert-Specialized Fine-Tuning) is an efficient fine-tuning method for MoE (Mixture-of-Experts) architecture LLMs. By training only task-relevant experts, it significantly reduces computational resources and storage requirements while maintaining performance.
 
+<div align="center">
+  <H3>Quick start</H3>
+  <a href="./run_sagemaker.ipynb">📒 Notebook Tutorial</a>   |   <a href="#run-on-aws-sagemaker-ai">☁️ Run on SageMaker</a>   |   <a href="(#run-on-local">🖥️ Run on Local</a>
+</div>
+
+
 ## Core Concept
 
 1. **Collect Expert Routing Statistics**: Run inference on training data to record which experts each token is routed to
@@ -48,9 +54,9 @@ ESFT/
 | GLM-4 MoE | GLM-4.5-Air | ✅ |
 | GPT-OSS | gpt-oss-20b | ❌ |
 
-## Quick Start (AWS SageMaker AI)
+## Run on AWS SageMaker AI 
 
-### Environment Setup
+### SageMaker Setup
 
 For running on AWS SageMaker AI, you can use the pre-built container or build your own.
 
@@ -210,14 +216,11 @@ aws s3 sync s3://sagemaker-{region}-{account-id}/esft-{job-id}/output/data/logs/
 # Install TensorBoard
 pip install tensorboard
 
-# Download TensorBoard logs
-aws s3 sync s3://sagemaker-{region}-{account-id}/output/tensorboard/ ./tensorboard_logs/
-
 # Launch TensorBoard
-tensorboard --logdir ./tensorboard_logs --port 6006
+tensorboard --logdir s3://sagemaker-{region}-{account-id}/output/tensorboard/ --port 6006
 ```
 
-## Local Start
+## Run on Local
 
 ### Environment Setup
 
