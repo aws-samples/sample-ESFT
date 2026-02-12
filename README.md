@@ -459,4 +459,15 @@ Original paper: [Let the Expert Stick to His Last: Expert-Specialized Fine-Tunin
 
 ## License
 
-This project is licensed under the Apache-2.0 License.
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Licenses
+
+This project uses the following open-source libraries:
+
+| Library | License | Repository |
+|---------|---------|------------|
+| ESFT | MIT | [deepseek-ai/ESFT](https://github.com/deepseek-ai/ESFT) |
+| MS-Swift | Apache 2.0 | [modelscope/ms-swift](https://github.com/modelscope/ms-swift) |
+
+See [THIRD-PARTY-LICENSES](THIRD-PARTY-LICENSES) for full license texts.
