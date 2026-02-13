@@ -28,7 +28,7 @@ tensorboard==2.20.0
 pandas==2.3.3
 scipy==1.16.2
 matplotlib==3.10.7
-pillow==11.3.0
+pillow==12.1.1
 
 # Tokenizer 
 tiktoken==0.12.0
