@@ -7,6 +7,20 @@ ESFT (Expert-Specialized Fine-Tuning) is an efficient fine-tuning method for MoE
   <a href="./run_sagemaker.ipynb">📒 Notebook Tutorial</a>   |   <a href="#run-on-aws-sagemaker-ai">☁️ Run on SageMaker</a>   |   <a href="(#run-on-local">🖥️ Run on Local</a>
 </div>
 
+### Before you start
+
+```bash
+# Clone with submodule
+git clone --recurse-submodules https://github.com/aws-samples/sample-ESFT
+cd sample-ESFT
+
+# Initialize and update submodule
+git submodule update --init --recursive
+
+# Apply patches to ms-swift
+./scripts/apply_patches.sh
+```
+
 
 ## Core Concept
 
@@ -222,9 +236,10 @@ tensorboard --logdir s3://sagemaker-{region}-{account-id}/output/tensorboard/ --
 
 ## Run on Local
 
-### Environment Setup
+### (Optional) Environment Setup
 
-If you use vanilla EC2 or local machine, follow the steps below to set up the CUDA environment.
+If you use vanilla EC2 or local machine, follow the steps below to set up the CUDA environment. You can skip this setup by using [AWS DLAMI (Deep-Learning Amazon Machine Images)](https://aws.amazon.com/ai/machine-learning/amis/) with EC2.
+
 
 ```bash
 # check nvidia GPUs
@@ -269,19 +284,9 @@ sudo apt update
 sudo apt install -y python3.11 python3.11-venv python3.11-dev
 ```
 
-**(REQUIRED)** Install repositories and install dependencies
+**(REQUIRED)** Install dependencies
 
 ```bash
-# Clone with submodule
-git clone --recurse-submodules <REPO_URL>
-cd ESFT-ms-swift
-
-# Initialize and update submodule
-git submodule update --init --recursive
-
-# Apply patches to ms-swift
-./scripts/apply_patches.sh
-
 # Create virtual environment
 python3.11 -m venv .venv
 source .venv/bin/activate
